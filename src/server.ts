@@ -8,6 +8,8 @@ import helmet from "helmet";
 // custom import
 import config from "@/config";
 import limiter from "@/lib/express_rate_limit";
+import v1Routes from "@/routes/v1/index";
+import { connectToDatabase,diconnectFromDatabase } from "@/lib/mongoose";
 import type { CorsOptions } from "cors";
 
 const app = express();
@@ -43,13 +45,11 @@ app.use(helmet());
 app.use(limiter);
 (async () => {
   try {
-    app.get("/", (req, res) => {
-      res.json({
-        message: "Hello World",
-      });
-      app.listen(config.PORT, () => {
-        console.log(`Server running: http://localhost:${config.PORT}`);
-      });
+    await connectToDatabase();
+    app.use('/api/v1',v1Routes);
+
+    app.listen(config.PORT, () => {
+      console.log(`Server running: http://localhost:${config.PORT}`);
     });
   } catch (err) {
     console.log('Failed to start the server', err);
@@ -58,3 +58,17 @@ app.use(limiter);
     }
   }
 })();
+
+const handleServerShutdown =  async()=>{
+  try {
+    await diconnectFromDatabase();
+    console.group('Server SHUTDOWN');
+    process.exit(0);
+  }
+  catch(err){
+    console.log('Error during server shutdown',err);
+  }
+}
+
+process.on('SIGTERM',handleServerShutdown);
+process.on('SIGINT',handleServerShutdown);
